@@ -1,5 +1,3 @@
-
-
 // This is a demonstration on how to use an input device to trigger changes on your neo pixels.
 // You should wire a momentary push button to connect from ground to a digital IO pin.  When you
 // press the button it will change to a new pixel animation.  Note that you need to press the
@@ -50,6 +48,7 @@ typedef enum LightMode // This is an enum of the selectable modes (big picture)
   GAME1,
   THEATER_CHASE,
   RAINBOW,
+  XMAS2,
   NUMBER_OF_CHOICES,
 } LightMode_E;
 
@@ -75,6 +74,7 @@ typedef enum Colors
 
 uint32_t pixel_colors[NUMBER_OF_PIXEL_COLORS] = {BLACK_COLOR, WHITE_COLOR, RED_COLOR, GREEN_COLOR, BLUE_COLOR};
 unsigned long time;
+uint16_t t = 0;
 LightMode_E choice;
 uint8_t digit = 0;
 COLOR_E option_array[PIXEL_OPTIONS] = {0};
@@ -152,6 +152,10 @@ LightMode_E decodeLightMode(COLOR_E * optionArray)
           {
               retMode = RAINBOW;
           }
+          else if(getColorIndex(optionArray[0]) == RED)
+          {
+              retMode = XMAS2;
+          }
       }
     }
 
@@ -213,7 +217,7 @@ void debug_color_index(void)
 
 void setup() {
     // Open serial communications and wait for port to open:
-  Serial.begin(115200);
+  Serial.begin(57600);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
@@ -239,7 +243,7 @@ void setup() {
 void loop() 
 {
   
-  debug_color_index();
+  //debug_color_index();
   time = millis();
 
    if (digitalRead(ENTER_BUTTON_PIN) == LOW && choice != IDLE_MODE)
@@ -375,7 +379,9 @@ void loop()
             brightness32 *= 255;
             brightness32 /= 1000;
             brightness8 = brightness32;
-            
+            Serial.println();
+            Serial.print("Brightness = ");
+            Serial.println(brightness8, DEC);
             delay32 = analogRead(FREQ);
             if(delay32 > 1000) {delay32 = 1000;}
             delay32 *= 50;
@@ -393,15 +399,7 @@ void loop()
         uint8_t *rgb_color[3] = {&rgb_r, &rgb_g, &rgb_b};
         uint8_t eff_r, eff_g, eff_b;                    //  effective r, g, and b values after taking the total brightness into consideration
 
-        Serial.println();
-        Serial.print("r = ");
-        Serial.print(rgb_r, DEC);
-        Serial.print(" g = ");
-        Serial.print(rgb_g, DEC);
-        Serial.print(" b = ");
-        Serial.print(rgb_b, DEC);
-        Serial.println("rbg_index = ");
-        Serial.print(rgb_index, DEC);
+
         
      /*       uint8_t rgb_r = 0;
 uint8_t rgb_g = 0;
@@ -410,13 +408,16 @@ uint8_t rgb_index = 0;
        */     
         if(digitalRead(RIGHT_BUTTON_PIN) == LOW)
         {
+          while(digitalRead(RIGHT_BUTTON_PIN) == LOW)
+          {
             if(time - millis() >= 100)
             {
               time = millis();
-              rgb_index +=1;
-
+              rgb_index +=1 ;
+              Serial.println("\n\r->");
               while(digitalRead(RIGHT_BUTTON_PIN) == LOW);
             }
+          }
         }
         rgb_index %= 3;   // always make sure we don't break out of the 3-item array.
 //---------------------------------------------------------
@@ -439,6 +440,10 @@ uint8_t rgb_index = 0;
         totalBrightness32 *= *rgb_color[0];
         totalBrightness32 /= 1000;
         eff_r = totalBrightness32;
+        Serial.println();
+        Serial.print("Total brightness RED = ");
+        Serial.print(totalBrightness32, DEC);
+        Serial.println();
 
         totalBrightness32 = analogRead(VOLUME);
         if(totalBrightness32 > 1000) {totalBrightness32 = 1000;}
@@ -452,17 +457,77 @@ uint8_t rgb_index = 0;
         totalBrightness32 /= 1000;
         eff_b = totalBrightness32;
 //----------------------------------------------------------
+
+        Serial.println();
+        Serial.print("r = ");
+        Serial.print(rgb_r, DEC);
+        Serial.print(" g = ");
+        Serial.print(rgb_g, DEC);
+        Serial.print(" b = ");
+        Serial.println(rgb_b, DEC);
+
+        Serial.print("r = ");
+        Serial.print(eff_r, DEC);
+        Serial.print(" g = ");
+        Serial.print(eff_g, DEC);
+        Serial.print(" b = ");
+        Serial.println(eff_b, DEC);
+        Serial.print("rbg_index = ");
+        Serial.println(rgb_index, DEC);
         colorWipe(strip.Color(eff_r, eff_g, eff_b), 0);
         strip.show();
       
     }
         break;
-    case 99:
-        delay(1000);
-        while(onButton()== 0)
+    case XMAS:
         {
-           christmassCycle2(20);
-        }    
+            uint16_t i, j;
+            double f, f1, r, g, w;
+            f = 0.002*2*PI;
+            f1 = 0.0013*PI;
+ 
+            r = 255 * sin(f*t) * (analogRead(VOLUME)/1000.0);
+            g = -255 * sin(f*t)* (analogRead(VOLUME)/1000.0);
+            w = 250 * sin(f1*t)* (analogRead(FREQ)/1000.0);
+           
+            if(r <0)
+            { 
+                r = 0;
+            }
+            if(g <0)
+            {
+                g = 0;
+            }
+            if(w<0)
+            {
+                w = -w;
+            }
+            for(i=0; i<strip.numPixels(); i+=4) //draw one frame of the pixels
+            {
+                if(i<= strip.numPixels())
+                {
+                    strip.setPixelColor(i, r, g, 0);
+                }
+                if((i+1) <= strip.numPixels())
+                {
+                    strip.setPixelColor(i+1, w, w, w);
+                } 
+                if((i+2) <= strip.numPixels())
+                {
+                    strip.setPixelColor(i+2, g, r, 0);
+                }
+                if((i+3)<= strip.numPixels())
+                {
+                    strip.setPixelColor(i+3, w,w, w);
+                }
+            }
+
+
+            strip.show();
+      
+            t++;
+        }
+
         break;
 
     case 98: 
@@ -476,10 +541,10 @@ uint8_t rgb_index = 0;
             delay(100);
             while(onButton()== 0)
             {
-              breath(20);
+             // breath(20);
             }
             break;
-    case 3: 
+    case 96: 
             delay(100);
             while(onButton()== 0)
             {
@@ -514,22 +579,10 @@ void startShow(int i) {
 
 // Fill the dots one after the other with a color
 void colorWipe(uint32_t c, uint8_t wait) 
-{
-    uint16_t brightness16;
-    uint8_t r, g, b;
-    uint32_t color;
-            
-           
+{           
   for(uint16_t i=0; i<strip.numPixels(); i++) 
   {
-    brightness16 = analogRead(VOLUME);
-                
-    b = ((brightness16 * (uint8_t) c) /1000);
-    g = ((brightness16 * ((uint8_t) (c >> 8))) / 1000);
-    r = ((brightness16 * ((uint8_t) (c >> 16))) /1000);
-    color = strip.Color(r, g, b); 
-    
-    strip.setPixelColor(i, color);
+    strip.setPixelColor(i, c);
     strip.show();
     delay(wait);
   }
@@ -643,90 +696,6 @@ void christmassCycle(uint8_t wait)
 
 }
 
-void christmassCycle2(uint8_t wait)
-{
-  uint16_t i, k = 0, t = 0, j;
-  double f, f1, r, g, w;
-  f = 0.002*2*PI;
-  f1 = 0.0013*PI;
-  while(1)
-  {
-      r = 255 * sin(f*t);
-      g = -255 * sin(f*t);
-      w = 250 * sin(f1*t);
-      if(t%(strip.numPixels()/10)==0)
-      {
-        k++;
-      }
-      if(r <0)
-      { 
-        r = 0;
-      }
-      if(g <0)
-      {
-        g = 0;
-      }
-      if(w<0)
-      {
-        w = -w;
-      }
-      if(k>strip.numPixels())
-      {
-        k = 0;
-      }
-      for(i=0; i<strip.numPixels(); i+=4) //draw one frame of the pixels
-      {
-      
-        if(i+k<= strip.numPixels())
-        {
-          strip.setPixelColor(i+k, r, g, 0);
-        }
-        if((i+1+k) <= strip.numPixels())
-        {
-          strip.setPixelColor(i+1+k, w, w, w);
-        } 
-        if((i+2+k) <= strip.numPixels())
-        {
-          strip.setPixelColor(i+2+k, g, r, 0);
-        }
-        if((i+3+k)<= strip.numPixels())
-        {
-          strip.setPixelColor(i+3+k, w,w, w);
-        }
-        
-      }
-      for(i=0; i<k; i+=4)  //for the inverse
-      {
-        if(i<= strip.numPixels())
-        {
-          strip.setPixelColor(k-i, r, g, 0);
-        }
-        if((i+1) <= strip.numPixels())
-        {
-          strip.setPixelColor(k-i+1, w, w, w);
-        } 
-        if((i+2) <= strip.numPixels())
-        {
-          strip.setPixelColor(k-i+2, g, r, 0);
-        }
-        if((i+3)<= strip.numPixels())
-        {
-          strip.setPixelColor(k-i+3, 0,0, w);
-        }
-      }
-
-      strip.show();
-      
-      if(onButton() > 0)
-      {
-        return;
-      }
-      
-      t++;
-      
-  }
-
-}
 
 void breath(uint8_t pattern)
 {
